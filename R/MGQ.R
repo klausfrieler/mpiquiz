@@ -82,7 +82,6 @@ MGQ_scoring <- function(label){
 }
 
 MGQ_welcome_page <- function(dict = mpiquiz::mpiquiz_dict, type = "metal", timeout = 10){
-  browser()
   instructions_id <- sprintf("INSTRUCTIONS_%s", toupper(type))
   psychTestR::new_timeline(
     psychTestR::one_button_page(
@@ -169,7 +168,6 @@ MGQ <- function(num_items = NULL,
     stop(sprintf("Type must be one of %s", paste(names(MGQ_item_banks, collapse =", "))))
   }
   item_bank <- MGQ_item_banks[[type]]
-  browser()
   main <- psychTestR::new_timeline(
     MGQ_main_test(num_items = num_items, item_bank = item_bank, type = type, timeout = timeout, label = label),
     dict = dict)
