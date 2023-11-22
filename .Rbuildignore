@@ -1,0 +1,9 @@
+^.*\.Rproj$
+^\.Rproj\.user$
+.RData
+
+.travis.yml
+^Makefile
+data_raw
+output
+
