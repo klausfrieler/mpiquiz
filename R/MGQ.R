@@ -64,19 +64,21 @@ MGQ_scoring <- function(label){
       warning("MGQ_scoring: Found invalid results")
       return()
     }
-
     res <- results$q0
     num_targets = results$num_targets
     res <- purrr::map_chr(stringr::str_split(res, ":"), ~{.x[1]})
     correct <- sum(res != "foil" & res != "")
     incorrect <- sum(res == "foil")
-    points <- correct - 2*incorrect
+    #points <- correct - 2*incorrect
     correct <- c(rep(TRUE, correct), rep(FALSE, num_targets - correct))
-
+    TP <- sum(correct)
+    FN <- num_targets - TP
+    FP <- incorrect
+    f1 <- 2* TP/(2*TP + FN + FP)
     psychTestR::save_result(state, label = "perc_correct", value = mean(correct, na.rm = T))
     psychTestR::save_result(state, label = "num_items", value = length(correct))
     psychTestR::save_result(state, label = "num_correct", value = sum(correct, na.rm = T))
-    psychTestR::save_result(state, label = "points", value = points)
+    psychTestR::save_result(state, label = "points", value = round(f1 *100, 0))
   })
 
 }
