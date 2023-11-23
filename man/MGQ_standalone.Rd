@@ -25,6 +25,8 @@ MGQ_standalone(
 
 \item{num_items}{(Scalar integer) Number of items to be adminstered. Default NULL pulls all items.}
 
+\item{type}{(Character scalar) Type of quiz to implement. Currently supported: classical, metal, jazz, hiphop}
+
 \item{timeout}{(Double scalar) The time to answer (in seconds)}
 
 \item{with_id}{(Logical scalar) Whether to show a ID page.}

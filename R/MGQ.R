@@ -74,11 +74,14 @@ MGQ_scoring <- function(label){
     TP <- sum(correct)
     FN <- num_targets - TP
     FP <- incorrect
+    TN <- results$num_foils - FP
     f1 <- 2* TP/(2*TP + FN + FP)
+    message(sprintf("TP:%d, FP:%d, TN:%d, FN:%d, f1: %f", TP, FP, TN, FN, f1))
     psychTestR::save_result(state, label = "perc_correct", value = mean(correct, na.rm = T))
     psychTestR::save_result(state, label = "num_items", value = length(correct))
     psychTestR::save_result(state, label = "num_correct", value = sum(correct, na.rm = T))
     psychTestR::save_result(state, label = "points", value = round(f1 *100, 0))
+    psychTestR::save_result(state, label = "raw", value = sprintf("TP:%d, FP:%d, TN:%d, FN:%d", TP, FP, TN, FN))
   })
 
 }
@@ -119,18 +122,19 @@ MGQ_final_page <- function(dict = mpiquiz::mpiquiz_dict){
     ), dict = dict)
 }
 
-MGQ_feedback_with_score <- function(dict = mpiquiz::mpiquiz_dict){
+MGQ_feedback_with_score <- function(dict = mpiquiz::mpiquiz_dict, label){
   feedback_macro <- "FEEDBACK_SINGLE_PAGE"
   psychTestR::new_timeline(
     psychTestR::reactive_page(function(state,...){
-      results <- psychTestR::get_results(state = state, complete = TRUE, add_session_info = F) %>% as.data.frame()
+      results <- psychTestR::get_results(state = state, complete = TRUE, add_session_info = F) %>% as.list()
+      res <- results[[label]]
       text <- shiny::div(
         shiny::tags$script("can_advance = false;if(myTimer)window.clearTimeout(myTimer);console.log('MGQ: Cleared timeout');"),
         shiny::p(psychTestR::i18n(feedback_macro,
-                                  sub = list(num_correct = results$MGQ.num_correct,
-                                             num_items = results$MGQ.num_items,
-                                             points = results$MGQ.points,
-                                             perc_correct = round(100 * results$MGQ.perc_correct, 1)))))
+                                  sub = list(num_correct = res$num_correct,
+                                             num_items = res$num_items,
+                                             points = res$points,
+                                             perc_correct = round(100 * res$perc_correct, 1)))))
       psychTestR::one_button_page(body = text,
                                   button_text = psychTestR::i18n("CONTINUE"))
     }),
@@ -148,6 +152,7 @@ MGQ_feedback_with_score <- function(dict = mpiquiz::mpiquiz_dict){
 #' For a standalone implementation of the MGQ,
 #' consider using \code{\link{MGQ_standalone}()}.
 #' @param num_items (Integer scalar) Number of items in the test. Default NULL pulls all items.
+#' @param type (Character scalar) Type of quiz to implement. Currently supported: classical, metal, jazz, hiphop
 #' @param with_welcome (Logical scalar) Whether to show a welcome page.
 #' @param with_finish (Logical scalar) Whether to show a finished page.
 #' @param with_feedback (Logical scalar) Whether to include feedback to the participants.
@@ -166,10 +171,11 @@ MGQ <- function(num_items = NULL,
                 dict = mpiquiz::mpiquiz_dict,
                 timeout = 180,
                 ...){
-  if(!(type %in% names(MGQ_item_banks))){
-    stop(sprintf("Type must be one of %s", paste(names(MGQ_item_banks, collapse =", "))))
+  if(!(type %in% names(mpiquiz::MGQ_item_banks))){
+    stop(sprintf("Type must be one of %s", paste(names(mpiquiz::MGQ_item_banks), collapse =", ")))
   }
-  item_bank <- MGQ_item_banks[[type]]
+  item_bank <- mpiquiz::MGQ_item_banks[[type]]
+  label <- sprintf("%s_%s", label, type)
   main <- psychTestR::new_timeline(
     MGQ_main_test(num_items = num_items, item_bank = item_bank, type = type, timeout = timeout, label = label),
     dict = dict)
@@ -178,7 +184,7 @@ MGQ <- function(num_items = NULL,
     psychTestR::begin_module(label),
     if (with_welcome) MGQ_welcome_page(timeout = timeout, type = type),
     main,
-    if(with_feedback) MGQ_feedback_with_score(dict = dict),
+    if(with_feedback) MGQ_feedback_with_score(dict = dict, label = label),
     psychTestR::elt_save_results_to_disk(complete = TRUE),
     # psychTestR::code_block(function(state, ...){
     #   results <- psychTestR::get_results(state, complete = F)
@@ -203,6 +209,7 @@ MGQ_main_test <- function(num_items = NULL, item_bank = NULL, type = "metal", ti
 #' This function launches a demo for the MGQ
 #'
 #' @param num_items (Integer scalar) Number of items in the test. Default NULL pulls all items.
+#' @param type (Character scalar) Type of quiz to implement. Currently supported: classical, metal, jazz, hiphop
 #' @param timeout (Double scalar) The time to answer (in seconds)
 #' @param title (Character scalar) The title
 #' @param admin_password (Scalar character) Password for accessing the admin panel.
@@ -252,6 +259,7 @@ MGQ_demo <- function(num_items = 3L,
 #' This can be used for data collection, either in the laboratory or online.
 #' @param title (Scalar character) Title to display during testing.
 #' @param num_items (Scalar integer) Number of items to be adminstered. Default NULL pulls all items.
+#' @param type (Character scalar) Type of quiz to implement. Currently supported: classical, metal, jazz, hiphop
 #' @param timeout (Double scalar) The time to answer (in seconds)
 #' @param with_id (Logical scalar) Whether to show a ID page.
 #' @param with_welcome (Logical scalar) Whether to show a welcome page.

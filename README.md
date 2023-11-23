@@ -1,7 +1,7 @@
 # mpiquiz: A collection music genre expertise quiues.
 
 
-This package contains a collection of music genre quizes.
+This package contains a collection of music genre quizzes (metal, jazz, classical, hiphop)
 
 ### Manual
 More detailed information is to follow.

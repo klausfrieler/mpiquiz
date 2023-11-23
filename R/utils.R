@@ -39,41 +39,7 @@ tagify_with_line_breaks <- function(x, sep = "//", style = NULL){
   }
   shiny::tagAppendAttributes(ret, style = style)
 }
-get_year <- function(date) {
-  as.numeric(strsplit(as.character(date), "-")[[1]][1])
-}
 
-get_month <- function(date) {
-  as.numeric(strsplit(as.character(date), "-")[[1]][2])
-}
-
-get_items <- function(label, subscales = c(), short_version = FALSE, configuration_filepath = NULL) {
-  items <- mpipoet::mpipoet_item_bank %>%
-    filter(stringr::str_detect(prompt_id, stringr::str_interp("T${label}")))
-
-  if (!is.null(subscales)) {
-    filtered_items <- as.data.frame(items[map(subscales, function(x) grep(gsub("(", "\\(", gsub(")", "\\)", x, fixed = TRUE), fixed = TRUE), items$subscales)) %>% unlist() %>% unique(), ])
-    return(filtered_items %>% dplyr::arrange(prompt_id))
-  }
-
-  items %>% dplyr::arrange(prompt_id)
-}
-
-problems_info <- function(researcher_email) {
-  problems_info_html <- c()
-  for (i in 1:length(languages())) {
-    span <- shiny::tags$span(
-      mpipoet::mpipoet_dict$translate("PROBLEMS_INFO_1", languages()[[i]]),
-      shiny::tags$br(),
-      mpipoet::mpipoet_dict$translate("PROBLEMS_INFO_2", languages()[[i]]),
-      shiny::tags$a(href = paste0("mailto:", researcher_email), researcher_email),
-      mpipoet::mpipoet_dict$translate("PROBLEMS_INFO_3", languages()[[i]]))
-    problems_info_html[[i]] <- span
-  }
-
-  names(problems_info_html) <- languages()
-  problems_info_html
-}
 
 join_dicts <- function(dict1, dict2 = NULL, keys1 = NULL, keys2 = NULL){
   if(is.null(dict2 )){

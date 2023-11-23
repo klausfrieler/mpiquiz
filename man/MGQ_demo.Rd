@@ -18,6 +18,8 @@ MGQ_demo(
 \arguments{
 \item{num_items}{(Integer scalar) Number of items in the test. Default NULL pulls all items.}
 
+\item{type}{(Character scalar) Type of quiz to implement. Currently supported: classical, metal, jazz, hiphop}
+
 \item{timeout}{(Double scalar) The time to answer (in seconds)}
 
 \item{title}{(Character scalar) The title}
