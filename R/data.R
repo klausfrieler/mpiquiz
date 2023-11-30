@@ -36,6 +36,13 @@ NULL
 #' @docType data
 NULL
 
+#' Pop item bank
+#'
+#' The Pop item bank
+#' @name pop_item_bank
+#' @docType data
+NULL
+
 #' List of  item banks
 #'
 #' List of item banks
