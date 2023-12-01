@@ -3,11 +3,20 @@ get_MGQ_item_sequence <- function(num_items = NULL, item_bank = NULL, equal_prob
   if(!is.null(seed)){
     set.seed(seed)
   }
+  max_num_targets <- nrow(item_bank %>% filter(role != "foil"))
+  max_num_foils <- nrow(item_bank %>% filter(role == "foil"))
   max_items <- nrow(item_bank)
   num_items <- max(4, min(num_items, max_items))
   if(equal_probability){
-    num_targets <- round(num_items/2)
-    num_foils <- round(num_items/2)
+    if(num_items > 2 * min(max_num_targets, max_num_foils)) {
+      messagef("NUmber of items requested is too large, Setting to %d", 2 * min(max_num_targets, max_num_foils))
+      num_targets <- num_foils <- min(max_num_targets, max_num_foils)
+      num_items <-  2*num_targets
+    }
+    else{
+      num_targets <- round(num_items/2)
+      num_foils <- round(num_items/2)
+    }
     if(num_items %% 2) num_targets <- num_targets + 1
     messagef("Found %d/%d targets/foils %.2f) for %d items",
              num_targets,
@@ -16,7 +25,7 @@ get_MGQ_item_sequence <- function(num_items = NULL, item_bank = NULL, equal_prob
              num_items)
     targets <- item_bank %>% filter(role != "foil") %>% sample_n(num_targets)
     foils <- item_bank %>% filter(role == "foil") %>% sample_n(num_foils)
-    items <- bind_rows(targets, foils) %>% sample_n(num_items)
+    items <- bind_rows(targets, foils) %>% sample_n(nrow(.))
     return(list(items = items, num_targets = num_targets, num_foils = num_foils))
   }
 
@@ -150,7 +159,7 @@ MGQ_scoring <- function(label){
     #r <- (mean(correct) - p_e)/p_e
     points <- .5 * (f1 + f1_inv)
     points <- max(0, (points - base_line)/(1 - base_line))
-    browser()
+    #browser()
     message(sprintf("TP:%d, FP:%d, TN:%d, FN:%d, f1: %.2f, f1_inv: %.2f", TP, FP, TN, FN, f1, f1_inv))
     psychTestR::save_result(state, label = "perc_correct", value = mean(correct, na.rm = T))
     psychTestR::save_result(state, label = "num_items", value = num_items)
