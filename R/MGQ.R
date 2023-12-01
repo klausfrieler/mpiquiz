@@ -1,13 +1,28 @@
-get_MGQ_item_sequence <- function(num_items = NULL, item_bank = NULL, seed = NULL){
+get_MGQ_item_sequence <- function(num_items = NULL, item_bank = NULL, equal_probability = T, seed = NULL){
   #browser()
   if(!is.null(seed)){
     set.seed(seed)
   }
   max_items <- nrow(item_bank)
-  num_items <- max(3, min(num_items, max_items))
+  num_items <- max(4, min(num_items, max_items))
+  if(equal_probability){
+    num_targets <- round(num_items/2)
+    num_foils <- round(num_items/2)
+    if(num_items %% 2) num_targets <- num_targets + 1
+    messagef("Found %d/%d targets/foils %.2f) for %d items",
+             num_targets,
+             num_foils,
+             num_targets/num_items,
+             num_items)
+    targets <- item_bank %>% filter(role != "foil") %>% sample_n(num_targets)
+    foils <- item_bank %>% filter(role == "foil") %>% sample_n(num_foils)
+    items <- bind_rows(targets, foils) %>% sample_n(num_items)
+    return(list(items = items, num_targets = num_targets, num_foils = num_foils))
+  }
+
   num_targets <- 0
   p <- mean(item_bank$role == "target")
-  sd <- sqrt(p*(1-p)/max_items)
+  sd <- sqrt(p * (1 - p)/max_items)
   lower <- p - 2 * sd
   upper <- p + 2 * sd
   while(num_targets/num_items < lower || num_targets/num_items > upper ){
@@ -36,7 +51,9 @@ MGQ_item_page <- function(num_items = 10,
   timer_script <- sprintf("var myTimer;can_advance = true;if(myTimer)window.clearTimeout(myTimer);myTimer = window.setTimeout(function(){if(can_advance){Shiny.onInputChange('next_page', performance.now());console.log('TIMEOUT')}}, %d);console.log('Set timer: ' + %d + 's');", timeout * 1000, timeout)
   psychTestR::join(
     psychTestR::code_block(function(state, ...){
-      psychTestR::save_result(state, label = "items", value = paste(sprintf("%s:%s", items$role, items$name), collapse = ", "))
+      psychTestR::save_result(state, label = "items",
+                              value = paste(sprintf("%s:%s", items$role, items$name),
+                                            collapse = ", "))
       psychTestR::save_result(state, label = "num_targets", value = num_targets)
       psychTestR::save_result(state, label = "num_foils", value = num_foils)
     }),
@@ -56,6 +73,54 @@ MGQ_item_page <- function(num_items = 10,
   #, dict = dict)
 }
 
+mean_f1 <- function(num_targets, num_foils, TP, FP, FN, TN){
+  f1 <- 2 * TP/(2 * TP + FN + FP)
+  f1_inv <- 2 * TN/(2*TN + FP + FN)
+  base_line <- .5 * max(2*num_targets/(2*num_targets + num_foils), 2*num_foils/(2*num_foils  + num_targets))
+  points <- .5 * (f1 + f1_inv)
+  points_scaled <- max(0, (points - base_line)/(1 - base_line))
+  #messagef("Points: %f, scaled: %f, base_line: %f", points, points_scaled, base_line)
+  points_scaled
+}
+
+simulate_rater <- function(num_targets, num_foils, num_selected = 1, size = 100, p_target = NULL, p_foil = NULL){
+  num_items <- num_targets +  num_foils
+  base_set <- c(rep(1, num_targets), rep(0, num_foils))
+  items <- sample(base_set, num_items)
+  empty <- rep(0, num_items)
+
+  purrr::map_dfr(1:size, function(i){
+    #browser()
+    ratings <- empty
+    if(is.null(p_target)){
+      idz <- sample(1:num_items, size = num_selected)
+      ratings[idz] <- 1
+    }
+    else{
+      idz_target <- sample(which(items == 1), round(sum(items) * p_target))
+      idz_foil <- setdiff(which(items == 0), sample(which(items == 0), round(sum(1 - items) * p_foil)))
+      idz <- union(idz_target, idz_foil)
+      ratings[idz] <- 1
+
+    }
+
+    TP <- sum(items == ratings & items == 1)
+    FP <- sum(items != ratings & items == 1)
+    TN <- sum(items == ratings & items == 0)
+    FN <- sum(items != ratings & items == 0)
+    points <- mean_f1(num_targets, num_foils, TP, FP, FN, TN)
+    tibble(num_items,
+           num_targets,
+           num_foils,
+           N = num_selected,
+           TP = TP,
+           FP = FP,
+           TN = FN,
+           FN = FN,
+           points = points,
+           iter = i)
+  })
+}
 MGQ_scoring <- function(label){
   psychTestR::code_block(function(state, ...) {
     results <- psychTestR::get_results(state = state, complete = FALSE) %>% as.list()
@@ -66,6 +131,8 @@ MGQ_scoring <- function(label){
     }
     res <- results$q0
     num_targets = results$num_targets
+    num_foils <- results$num_foils
+    num_items <- num_targets + num_foils
     res <- purrr::map_chr(stringr::str_split(res, ":"), ~{.x[1]})
     correct <- sum(res != "foil" & res != "")
     incorrect <- sum(res == "foil")
@@ -75,13 +142,24 @@ MGQ_scoring <- function(label){
     FN <- num_targets - TP
     FP <- incorrect
     TN <- results$num_foils - FP
-    f1 <- 2* TP/(2*TP + FN + FP)
-    message(sprintf("TP:%d, FP:%d, TN:%d, FN:%d, f1: %f", TP, FP, TN, FN, f1))
+    f1 <- 2 * TP/(2 * TP + FN + FP)
+    f1_inv <- 2 * TN/(2*TN + FP + FN)
+    base_line <- .5 * max(2*num_targets/(2*num_targets + num_foils), 2*num_foils/(2*num_foils  + num_targets))
+    #p_e <- num_targets/num_items
+    #base_line <- (1 - p_e)/p_e
+    #r <- (mean(correct) - p_e)/p_e
+    points <- .5 * (f1 + f1_inv)
+    points <- max(0, (points - base_line)/(1 - base_line))
+    browser()
+    message(sprintf("TP:%d, FP:%d, TN:%d, FN:%d, f1: %.2f, f1_inv: %.2f", TP, FP, TN, FN, f1, f1_inv))
     psychTestR::save_result(state, label = "perc_correct", value = mean(correct, na.rm = T))
-    psychTestR::save_result(state, label = "num_items", value = length(correct))
+    psychTestR::save_result(state, label = "num_items", value = num_items)
+    psychTestR::save_result(state, label = "num_selected", value = length(res[nzchar(res)]))
     psychTestR::save_result(state, label = "num_correct", value = sum(correct, na.rm = T))
-    psychTestR::save_result(state, label = "points", value = round(f1 *100, 0))
+    psychTestR::save_result(state, label = "points", value = round(points *100, 0))
     psychTestR::save_result(state, label = "raw", value = sprintf("TP:%d, FP:%d, TN:%d, FN:%d", TP, FP, TN, FN))
+    psychTestR::save_result(state, label = "FP", value = FP)
+    psychTestR::save_result(state, label = "FN", value = FN)
   })
 
 }
@@ -127,12 +205,15 @@ MGQ_feedback_with_score <- function(dict = mpiquiz::mpiquiz_dict, label){
   psychTestR::new_timeline(
     psychTestR::reactive_page(function(state,...){
       results <- psychTestR::get_results(state = state, complete = TRUE, add_session_info = F) %>% as.list()
+
       res <- results[[label]]
       text <- shiny::div(
         shiny::tags$script("can_advance = false;if(myTimer)window.clearTimeout(myTimer);console.log('MGQ: Cleared timeout');"),
         shiny::p(psychTestR::i18n(feedback_macro,
                                   sub = list(num_correct = res$num_correct,
-                                             num_items = res$num_items,
+                                             num_items = res$num_targets,
+                                             FP = res$FP,
+                                             FN = res$FN,
                                              points = res$points,
                                              perc_correct = round(100 * res$perc_correct, 1)))))
       psychTestR::one_button_page(body = text,
