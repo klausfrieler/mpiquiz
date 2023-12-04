@@ -45,12 +45,12 @@ read_pop_item_bank <- function(){
   pop_item_bank
 }
 
-metal_item_bank <- read_metal_item_bank()
+metal_item_bank     <- read_metal_item_bank()
 classical_item_bank <- read_classical_item_bank()
-composer_item_bank <- read_composer_item_bank()
-jazz_item_bank <- read_jazz_item_bank()
-hiphop_item_bank <- read_hiphop_item_bank()
-pop_item_bank <- read_pop_item_bank()
+composer_item_bank  <- read_composer_item_bank()
+jazz_item_bank      <- read_jazz_item_bank()
+hiphop_item_bank    <- read_hiphop_item_bank()
+pop_item_bank       <- read_pop_item_bank()
 
 MGQ_item_banks <- list("metal" = metal_item_bank,
                        "classical" = classical_item_bank,
