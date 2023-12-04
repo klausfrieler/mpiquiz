@@ -4,7 +4,7 @@ get_MGQ_item_sequence <- function(num_items = NULL, item_bank = NULL, equal_prob
     set.seed(seed)
   }
   max_num_targets <- nrow(item_bank %>% filter(role != "foil"))
-  max_num_foils <- nrow(item_bank %>% filter(role == "foil"))
+  max_num_foils   <- nrow(item_bank %>% filter(role == "foil"))
   max_items <- nrow(item_bank)
   num_items <- max(4, min(num_items, max_items))
   if(equal_probability){
