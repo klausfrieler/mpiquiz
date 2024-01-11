@@ -1,7 +1,7 @@
 Package: mpiquiz
 Type: Package
 Title: MUsic Genre Expertise Quiz
-Version: 0.6.0
+Version: 0.6.1
 Author: Klaus Frieler
 Maintainer: Klaus Frieler <klaus.frieler@ae.mpg.de>
 Description: Collection of expertise quizzes for several musical genres (metal, jazz, classical, hiphop).
